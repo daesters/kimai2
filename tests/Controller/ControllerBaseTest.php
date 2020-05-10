@@ -214,7 +214,7 @@ abstract class ControllerBaseTest extends WebTestCase
             self::assertEquals($expectedUrl, $element->getAttribute('href'));
         }
 
-        self::assertEquals(count($buttons), $node->count(), 'Invalid amount of page actions');
+        self::assertEquals(\count($buttons), $node->count(), 'Invalid amount of page actions');
     }
 
     /**
@@ -239,9 +239,9 @@ abstract class ControllerBaseTest extends WebTestCase
         $validationErrors = $submittedForm->filter('li.text-danger');
 
         self::assertEquals(
-            count($fieldNames),
-            count($validationErrors),
-            sprintf('Expected %s validation errors, found %s', count($fieldNames), count($validationErrors))
+            \count($fieldNames),
+            \count($validationErrors),
+            sprintf('Expected %s validation errors, found %s', \count($fieldNames), \count($validationErrors))
         );
 
         foreach ($fieldNames as $name) {
@@ -251,7 +251,7 @@ abstract class ControllerBaseTest extends WebTestCase
             self::assertNotNull($list, 'Form field has no validation message: ' . $name);
 
             $validation = $list->filter('li.text-danger');
-            if (count($validation) < 1) {
+            if (\count($validation) < 1) {
                 // decorated form fields with icon have a different html structure, see kimai-theme.html.twig
                 /** @var \DOMElement $listMsg */
                 $listMsg = $field->parents()->getNode(1);
@@ -321,12 +321,12 @@ abstract class ControllerBaseTest extends WebTestCase
      */
     protected function assertIsRedirect(HttpKernelBrowser $client, $url = null)
     {
-        self::assertTrue($client->getResponse()->isRedirect());
+        self::assertTrue($client->getResponse()->isRedirect(), 'Response is not a redirect');
         if (null === $url) {
             return;
         }
 
-        self::assertTrue($client->getResponse()->headers->has('Location'));
-        self::assertStringEndsWith($url, $client->getResponse()->headers->get('Location'));
+        self::assertTrue($client->getResponse()->headers->has('Location'), 'Could not find "Location" header');
+        self::assertStringEndsWith($url, $client->getResponse()->headers->get('Location'), 'Redirect URL does not match');
     }
 }

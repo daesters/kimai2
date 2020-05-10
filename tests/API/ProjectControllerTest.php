@@ -9,9 +9,13 @@
 
 namespace App\Tests\API;
 
+use App\DataFixtures\UserFixtures;
 use App\Entity\Customer;
 use App\Entity\Project;
+use App\Entity\ProjectRate;
 use App\Entity\User;
+use App\Repository\ProjectRateRepository;
+use App\Repository\ProjectRepository;
 use App\Repository\Query\VisibilityInterface;
 use App\Tests\Mocks\ProjectTestMetaFieldSubscriberMock;
 use Symfony\Component\HttpFoundation\Response;
@@ -22,6 +26,52 @@ use Symfony\Component\HttpKernel\HttpKernelBrowser;
  */
 class ProjectControllerTest extends APIControllerBaseTest
 {
+    use RateControllerTestTrait;
+
+    protected function getRateUrl($id = '1', $rateId = null): string
+    {
+        if (null !== $rateId) {
+            return sprintf('/api/projects/%s/rates/%s', $id, $rateId);
+        }
+
+        return sprintf('/api/projects/%s/rates', $id);
+    }
+
+    protected function importTestRates($id): array
+    {
+        /** @var ProjectRateRepository $rateRepository */
+        $rateRepository = $this->getEntityManager()->getRepository(ProjectRate::class);
+        /** @var ProjectRepository $repository */
+        $repository = $this->getEntityManager()->getRepository(Project::class);
+        /** @var Project|null $project */
+        $project = $repository->find($id);
+
+        if (null === $project) {
+            $project = new Project();
+            $project->setName('foooo');
+            $project->setCustomer($this->getEntityManager()->getRepository(Customer::class)->find(1));
+            $repository->saveProject($project);
+        }
+
+        $rate1 = new ProjectRate();
+        $rate1->setProject($project);
+        $rate1->setRate(17.45);
+        $rate1->setIsFixed(false);
+
+        $rateRepository->saveRate($rate1);
+
+        $rate2 = new ProjectRate();
+        $rate2->setProject($project);
+        $rate2->setRate(99);
+        $rate2->setInternalRate(9);
+        $rate2->setIsFixed(true);
+        $rate2->setUser($this->getUserByName(UserFixtures::USERNAME_USER));
+
+        $rateRepository->saveRate($rate2);
+
+        return [$rate1, $rate2];
+    }
+
     public function testIsSecure()
     {
         $this->assertUrlIsSecured('/api/projects');
@@ -35,13 +85,13 @@ class ProjectControllerTest extends APIControllerBaseTest
 
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
-        $this->assertEquals(1, count($result));
+        $this->assertEquals(1, \count($result));
         $this->assertStructure($result[0], false);
     }
 
     protected function loadProjectTestData(HttpKernelBrowser $client)
     {
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
 
         $customer = $em->getRepository(Customer::class)->find(1);
 
@@ -83,9 +133,9 @@ class ProjectControllerTest extends APIControllerBaseTest
         $result = json_decode($client->getResponse()->getContent(), true);
 
         $this->assertIsArray($result);
-        $this->assertEquals(count($expected), count($result), 'Found wrong amount of projects');
+        $this->assertEquals(\count($expected), \count($result), 'Found wrong amount of projects');
 
-        for ($i = 0; $i < count($expected); $i++) {
+        for ($i = 0; $i < \count($expected); $i++) {
             $project = $result[$i];
             $compare = $expected[$i];
             $this->assertStructure($project, false);
@@ -104,8 +154,12 @@ class ProjectControllerTest extends APIControllerBaseTest
         // customer is invisible, so nothing should be returned
         yield ['/api/projects', ['customer' => '2', 'visible' => VisibilityInterface::SHOW_VISIBLE], []];
         yield ['/api/projects', ['customer' => '2', 'visible' => VisibilityInterface::SHOW_BOTH], [[false, 2], [false, 2]]];
+        yield ['/api/projects', ['customer' => '2', 'customers' => '2', 'visible' => VisibilityInterface::SHOW_BOTH], [[false, 2], [false, 2]]];
+        yield ['/api/projects', ['customer' => '2', 'customers' => '2,2', 'visible' => VisibilityInterface::SHOW_BOTH], [[false, 2], [false, 2]]];
         // customer is invisible, so nothing should be returned
         yield ['/api/projects', ['customer' => '2', 'visible' => VisibilityInterface::SHOW_HIDDEN, 'start' => '2010-12-11T23:59:59', 'end' => '2030-12-11T23:59:59'], []];
+        yield ['/api/projects', ['customers' => '2', 'visible' => VisibilityInterface::SHOW_HIDDEN, 'start' => '2010-12-11T23:59:59', 'end' => '2030-12-11T23:59:59'], []];
+        yield ['/api/projects', ['customers' => '2,2', 'visible' => VisibilityInterface::SHOW_HIDDEN, 'start' => '2010-12-11T23:59:59', 'end' => '2030-12-11T23:59:59'], []];
     }
 
     public function testGetEntity()
@@ -133,6 +187,8 @@ class ProjectControllerTest extends APIControllerBaseTest
             'orderDate' => '2018-02-08T13:02:54',
             'start' => '2019-02-01T19:32:17',
             'end' => '2020-02-08T21:11:42',
+            'budget' => '999',
+            'timeBudget' => '7200',
         ];
         $this->request($client, '/api/projects', 'POST', [], json_encode($data));
         $this->assertTrue($client->getResponse()->isSuccessful());
@@ -183,7 +239,9 @@ class ProjectControllerTest extends APIControllerBaseTest
             'name' => 'foo',
             'comment' => '',
             'customer' => 1,
-            'visible' => true
+            'visible' => true,
+            'budget' => '999',
+            'timeBudget' => '7200',
         ];
         $this->request($client, '/api/projects/1', 'PATCH', [], json_encode($data));
         $this->assertTrue($client->getResponse()->isSuccessful());
@@ -274,7 +332,7 @@ class ProjectControllerTest extends APIControllerBaseTest
 
         $this->assertTrue($client->getResponse()->isSuccessful());
 
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
         /** @var Project $project */
         $project = $em->getRepository(Project::class)->find(1);
         $this->assertEquals('another,testing,bar', $project->getMetaField('metatestmock')->getValue());

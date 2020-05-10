@@ -71,6 +71,7 @@ class Extensions extends AbstractExtension
             new TwigFilter('language', [$this, 'language']),
             new TwigFilter('amount', [$this, 'amount']),
             new TwigFilter('docu_link', [$this, 'documentationLink']),
+            new TwigFilter('multiline_indent', [$this, 'multilineIndent']),
         ];
     }
 
@@ -91,11 +92,29 @@ class Extensions extends AbstractExtension
      */
     public function getClassName($object)
     {
-        if (!is_object($object)) {
+        if (!\is_object($object)) {
             return null;
         }
 
-        return get_class($object);
+        return \get_class($object);
+    }
+
+    public function multilineIndent(?string $string, string $indent): string
+    {
+        if (null === $string || '' === $string) {
+            return '';
+        }
+
+        $parts = explode("\r\n", $string);
+        if (\count($parts) === 1) {
+            $parts = explode("\n", $string);
+        }
+
+        $parts = array_map(function ($part) use ($indent) {
+            return $indent . $part;
+        }, $parts);
+
+        return implode("\n", $parts);
     }
 
     /**

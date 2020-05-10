@@ -40,6 +40,7 @@ require('moment/locale/cs');
 require('moment/locale/da');
 require('moment/locale/de');
 require('moment/locale/de-ch');
+require('moment/locale/eo');
 require('moment/locale/es');
 require('moment/locale/eu');
 require('moment/locale/fr');
@@ -62,7 +63,8 @@ const Sortable = require('sortablejs/Sortable.min');
 global.Sortable = Sortable;
 
 // ------ AdminLTE framework ------
-require('./sass/admin-lte.scss');
+require('./sass/bootstrap.scss');
+require('./sass/fontawesome.scss');
 require('admin-lte/dist/css/AdminLTE.min.css');
 require('admin-lte/dist/css/skins/_all-skins.css');
 require('../vendor/kevinpapst/adminlte-bundle/Resources/assets/admin-lte-extensions.scss');

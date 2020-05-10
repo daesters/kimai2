@@ -36,6 +36,10 @@ class ProjectControllerTest extends ControllerBaseTest
     public function testIsSecure()
     {
         $this->assertUrlIsSecured('/admin/project/');
+    }
+
+    public function testIsSecureForRole()
+    {
         $this->assertUrlIsSecuredForRole(User::ROLE_USER, '/admin/project/');
     }
 
@@ -58,15 +62,15 @@ class ProjectControllerTest extends ControllerBaseTest
             $project->setMetaField((new ProjectMeta())->setName('location')->setValue('homeoffice'));
             $project->setMetaField((new ProjectMeta())->setName('feature')->setValue('timetracking'));
         });
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         $this->assertAccessIsGranted($client, '/admin/project/');
 
         $form = $client->getCrawler()->filter('form.header-search')->form();
         $client->submit($form, [
             'searchTerm' => 'feature:timetracking foo',
             'visibility' => 1,
+            'customers' => [1],
             'pageSize' => 50,
             'page' => 1,
         ]);
@@ -80,23 +84,22 @@ class ProjectControllerTest extends ControllerBaseTest
     {
         $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         /** @var EntityManager $em */
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
 
         $project = $em->getRepository(Project::class)->find(1);
 
         $fixture = new TimesheetFixtures();
         $fixture->setAmount(10);
         $fixture->setProjects([$project]);
-        $fixture->setUser($this->getUserByRole($em, User::ROLE_ADMIN));
-        $this->importFixture($client, $fixture);
+        $fixture->setUser($this->getUserByRole(User::ROLE_ADMIN));
+        $this->importFixture($fixture);
 
         $project = $em->getRepository(Project::class)->find(1);
         $fixture = new ActivityFixtures();
         $fixture->setAmount(6); // to trigger a second page
         $fixture->setProjects([$project]);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         $this->assertAccessIsGranted($client, '/admin/project/1/details');
         self::assertHasProgressbar($client);
 
@@ -145,13 +148,13 @@ class ProjectControllerTest extends ControllerBaseTest
     {
         $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         /** @var EntityManager $em */
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
         $project = $em->find(Project::class, 1);
         $project->setMetaField((new ProjectMeta())->setName('foo')->setValue('bar'));
         $project->setEnd(new \DateTime());
         $em->persist($project);
         $team = new Team();
-        $team->setTeamLead($this->getUserByRole($em, User::ROLE_ADMIN));
+        $team->setTeamLead($this->getUserByRole(User::ROLE_ADMIN));
         $team->addProject($project);
         $team->setName('project 1');
         $em->persist($team);
@@ -177,34 +180,6 @@ class ProjectControllerTest extends ControllerBaseTest
         $node = $client->getCrawler()->filter('div.box#project_rates_box table.dataTable tbody tr:not(.summary)');
         self::assertEquals(1, $node->count());
         self::assertStringContainsString('123.45', $node->text(null, true));
-    }
-
-    public function testDeleteRateAction()
-    {
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
-        $this->assertAccessIsGranted($client, '/admin/project/1/rate');
-        $form = $client->getCrawler()->filter('form[name=project_rate_form]')->form();
-        $client->submit($form, [
-            'project_rate_form' => [
-                'user' => null,
-                'rate' => 123.45,
-            ]
-        ]);
-        $this->assertIsRedirect($client, $this->createUrl('/admin/project/1/details'));
-        $client->followRedirect();
-        $node = $client->getCrawler()->filter('div.box#project_rates_box');
-        self::assertEquals(1, $node->count());
-        $node = $client->getCrawler()->filter('div.box#project_rates_box table.dataTable tbody tr:not(.summary)');
-        self::assertEquals(1, $node->count());
-        self::assertStringContainsString('123.45', $node->text(null, true));
-
-        $node = $client->getCrawler()->filter('div.box#project_rates_box table.dataTable tbody tr td.actions a');
-        self::assertEquals(1, $node->count());
-        $url = $node->attr('href');
-        $client->request('GET', $url);
-        $this->assertIsRedirect($client, $this->createUrl('/admin/project/1/details'));
-        $node = $client->getCrawler()->filter('div.box#project_rates_box table.dataTable tbody tr:not(.summary)');
-        self::assertEquals(0, $node->count());
     }
 
     public function testAddCommentAction()
@@ -240,7 +215,6 @@ class ProjectControllerTest extends ControllerBaseTest
         $node = $client->getCrawler()->filter('div.box#comments_box .box-comment a.confirmation-link');
         self::assertEquals($this->createUrl('/admin/project/1/comment_delete'), $node->attr('href'));
 
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         $this->request($client, '/admin/project/1/comment_delete');
         $this->assertIsRedirect($client, $this->createUrl('/admin/project/1/details'));
         $client->followRedirect();
@@ -265,7 +239,6 @@ class ProjectControllerTest extends ControllerBaseTest
         $node = $client->getCrawler()->filter('div.box#comments_box .box-comment a.btn.active');
         self::assertEquals(0, $node->count());
 
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         $this->request($client, '/admin/project/1/comment_pin');
         $this->assertIsRedirect($client, $this->createUrl('/admin/project/1/details'));
         $client->followRedirect();
@@ -281,7 +254,6 @@ class ProjectControllerTest extends ControllerBaseTest
         $node = $client->getCrawler()->filter('div.box#team_listing_box .box-body');
         self::assertStringContainsString('Visible to everyone, as no team was assigned yet.', $node->text(null, true));
 
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         $this->request($client, '/admin/project/1/create_team');
         $this->assertIsRedirect($client, $this->createUrl('/admin/project/1/details'));
         $client->followRedirect();
@@ -298,14 +270,13 @@ class ProjectControllerTest extends ControllerBaseTest
         self::assertEquals('', $client->getResponse()->getContent());
 
         /** @var EntityManager $em */
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
         $project = $em->getRepository(Project::class)->find(1);
         $fixture = new ActivityFixtures();
         $fixture->setAmount(9); // to trigger a second page (every third activity is hidden)
         $fixture->setProjects([$project]);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
-        $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
         $this->assertAccessIsGranted($client, '/admin/project/1/activities/1');
 
         $node = $client->getCrawler()->filter('div.box#activity_list_box .box-tools ul.pagination li');
@@ -350,7 +321,7 @@ class ProjectControllerTest extends ControllerBaseTest
 
         $fixture = new CustomerFixtures();
         $fixture->setAmount(10);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
         $this->assertAccessIsGranted($client, '/admin/project/create');
         $form = $client->getCrawler()->filter('form[name=project_edit_form]')->form();
@@ -397,7 +368,7 @@ class ProjectControllerTest extends ControllerBaseTest
     public function testTeamPermissionAction()
     {
         $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
 
         /** @var Project $project */
         $project = $em->getRepository(Project::class)->find(1);
@@ -406,7 +377,7 @@ class ProjectControllerTest extends ControllerBaseTest
         $fixture = new TeamFixtures();
         $fixture->setAmount(2);
         $fixture->setAddCustomer(false);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
         $this->assertAccessIsGranted($client, '/admin/project/1/permissions');
         $form = $client->getCrawler()->filter('form[name=project_team_permission_form]')->form();
@@ -433,7 +404,7 @@ class ProjectControllerTest extends ControllerBaseTest
 
         $fixture = new ProjectFixtures();
         $fixture->setAmount(1);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
         $this->request($client, '/admin/project/2/edit');
         $this->assertTrue($client->getResponse()->isSuccessful());
@@ -456,14 +427,14 @@ class ProjectControllerTest extends ControllerBaseTest
     {
         $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
 
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
         $fixture = new TimesheetFixtures();
-        $fixture->setUser($this->getUserByRole($em, User::ROLE_USER));
+        $fixture->setUser($this->getUserByRole(User::ROLE_USER));
         $fixture->setAmount(10);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
         $timesheets = $em->getRepository(Timesheet::class)->findAll();
-        $this->assertEquals(10, count($timesheets));
+        $this->assertEquals(10, \count($timesheets));
 
         /** @var Timesheet $entry */
         foreach ($timesheets as $entry) {
@@ -495,17 +466,17 @@ class ProjectControllerTest extends ControllerBaseTest
     {
         $client = $this->getClientForAuthenticatedUser(User::ROLE_ADMIN);
 
-        $em = static::$kernel->getContainer()->get('doctrine.orm.entity_manager');
+        $em = $this->getEntityManager();
         $fixture = new TimesheetFixtures();
-        $fixture->setUser($this->getUserByRole($em, User::ROLE_USER));
+        $fixture->setUser($this->getUserByRole(User::ROLE_USER));
         $fixture->setAmount(10);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
         $fixture = new ProjectFixtures();
         $fixture->setAmount(1)->setIsVisible(true);
-        $this->importFixture($client, $fixture);
+        $this->importFixture($fixture);
 
         $timesheets = $em->getRepository(Timesheet::class)->findAll();
-        $this->assertEquals(10, count($timesheets));
+        $this->assertEquals(10, \count($timesheets));
 
         /** @var Timesheet $entry */
         foreach ($timesheets as $entry) {
@@ -529,7 +500,7 @@ class ProjectControllerTest extends ControllerBaseTest
         $this->assertHasFlashSuccess($client);
 
         $timesheets = $em->getRepository(Timesheet::class)->findAll();
-        $this->assertEquals(10, count($timesheets));
+        $this->assertEquals(10, \count($timesheets));
 
         /** @var Timesheet $entry */
         foreach ($timesheets as $entry) {

@@ -50,10 +50,10 @@ class ExtensionsTest extends TestCase
 
     public function testGetFilters()
     {
-        $filters = ['duration', 'duration_decimal', 'money', 'currency', 'country', 'language', 'amount', 'docu_link'];
+        $filters = ['duration', 'duration_decimal', 'money', 'currency', 'country', 'language', 'amount', 'docu_link', 'multiline_indent'];
         $sut = $this->getSut($this->localeDe);
         $twigFilters = $sut->getFilters();
-        $this->assertCount(count($filters), $twigFilters);
+        $this->assertCount(\count($filters), $twigFilters);
         $i = 0;
         /** @var TwigFilter $filter */
         foreach ($twigFilters as $filter) {
@@ -67,7 +67,7 @@ class ExtensionsTest extends TestCase
         $functions = ['locales', 'class_name'];
         $sut = $this->getSut($this->localeDe);
         $twigFunctions = $sut->getFunctions();
-        $this->assertCount(count($functions), $twigFunctions);
+        $this->assertCount(\count($functions), $twigFunctions);
         $i = 0;
         /** @var TwigFunction $filter */
         foreach ($twigFunctions as $filter) {
@@ -304,5 +304,44 @@ class ExtensionsTest extends TestCase
         $this->assertNull($sut->getClassName(''));
         $this->assertNull($sut->getClassName(null));
         $this->assertEquals('App\Entity\User', $sut->getClassName(new User()));
+    }
+
+    public function getMultilineTestData()
+    {
+        return [
+            ['    ', null, ['']],
+            ['    ', '', ['']],
+            ['    ', 0, ['    0']],
+            ['    ', 'sdfsdf
+sdfsdf
+
+ aksljdfh laksjd hflka sjhdf lakjhsdflak jsdfh
+dfsdfsdfsdfsdf',
+                ['    sdfsdf', '    sdfsdf', '    ', '     aksljdfh laksjd hflka sjhdf lakjhsdflak jsdfh', '    dfsdfsdfsdfsdf']
+            ],
+            ['###', 'sdfsdf' . PHP_EOL .
+'sdfsdf' . PHP_EOL .
+'' . PHP_EOL .
+' aksljdfh laksjd hflka sjhdf lakjhsdflak jsdfh' . PHP_EOL .
+'dfsdfsdfsdfsdf',
+                ['###sdfsdf', '###sdfsdf', '###', '### aksljdfh laksjd hflka sjhdf lakjhsdflak jsdfh', '###dfsdfsdfsdfsdf']
+            ],
+            ['  ', 'sdfsdf' . "\r\n" .
+'sdfsdf' . "\r\n" .
+'' . "\r\n" .
+' aksljdfh laksjd hflka sjhdf lakjhsdflak jsdfh' . "\r\n" .
+'dfsdfsdfsdfsdf',
+                ['  sdfsdf', '  sdfsdf', '  ', '   aksljdfh laksjd hflka sjhdf lakjhsdflak jsdfh', '  dfsdfsdfsdfsdf']
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider getMultilineTestData
+     */
+    public function testMultilineIndent($indent, $string, $expected)
+    {
+        $sut = $this->getSut($this->localeEn);
+        self::assertEquals(implode("\n", $expected), $sut->multilineIndent($string, $indent));
     }
 }

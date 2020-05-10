@@ -20,6 +20,10 @@ class SystemConfigurationControllerTest extends ControllerBaseTest
     public function testIsSecure()
     {
         $this->assertUrlIsSecured('/admin/system-config/');
+    }
+
+    public function testIsSecureForRole()
+    {
         $this->assertUrlIsSecuredForRole(User::ROLE_ADMIN, '/admin/system-config/');
     }
 
@@ -31,14 +35,14 @@ class SystemConfigurationControllerTest extends ControllerBaseTest
         $expectedForms = $this->getTestDataForms();
 
         $result = $client->getCrawler()->filter('section.content div.box.box-primary');
-        $this->assertEquals(count($expectedForms), count($result));
+        $this->assertEquals(\count($expectedForms), \count($result));
 
         $result = $client->getCrawler()->filter('section.content div.box.box-primary form');
-        $this->assertEquals(count($expectedForms), count($result));
+        $this->assertEquals(\count($expectedForms), \count($result));
 
         foreach ($expectedForms as $formConfig) {
             $result = $client->getCrawler()->filter($formConfig[0]);
-            $this->assertEquals(1, count($result));
+            $this->assertEquals(1, \count($result));
             $form = $result->form();
             $this->assertStringEndsWith($formConfig[1], $form->getUri());
             $this->assertEquals('POST', $form->getMethod());
@@ -53,13 +57,13 @@ class SystemConfigurationControllerTest extends ControllerBaseTest
         $expectedForms = $this->getTestDataForms();
 
         $result = $client->getCrawler()->filter('section.content div.box.box-primary');
-        $this->assertEquals(1, count($result));
+        $this->assertEquals(1, \count($result));
 
         $result = $client->getCrawler()->filter('section.content div.box.box-primary form');
-        $this->assertEquals(1, count($result));
+        $this->assertEquals(1, \count($result));
 
         $result = $client->getCrawler()->filter('form[name=system_configuration_form_timesheet]');
-        $this->assertEquals(1, count($result));
+        $this->assertEquals(1, \count($result));
         $form = $result->form();
         $this->assertEquals('POST', $form->getMethod());
     }
@@ -68,6 +72,7 @@ class SystemConfigurationControllerTest extends ControllerBaseTest
     {
         return [
             ['form[name=system_configuration_form_timesheet]', $this->createUrl('/admin/system-config/update/timesheet')],
+            ['form[name=system_configuration_form_invoice]', $this->createUrl('/admin/system-config/update/invoice')],
             ['form[name=system_configuration_form_rounding]', $this->createUrl('/admin/system-config/update/rounding')],
             ['form[name=system_configuration_form_form_customer]', $this->createUrl('/admin/system-config/update/form_customer')],
             ['form[name=system_configuration_form_form_user]', $this->createUrl('/admin/system-config/update/form_user')],

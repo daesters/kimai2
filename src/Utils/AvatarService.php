@@ -129,11 +129,10 @@ class AvatarService
         $filePath = $this->getImagePath($profile);
 
         if ($regenerate || !file_exists($filePath)) {
-            if (!is_writable(dirname($filePath))) {
+            if (!is_writable(\dirname($filePath))) {
                 return false;
             }
             $avatar = new Avatar(self::AVATAR_CONFIG);
-            $avatar->create($profile->getDisplayName())->save($filePath, 90);
             $avatar->create($profile->getDisplayName())->save($filePath, 90);
         }
 
@@ -155,6 +154,6 @@ class AvatarService
 
     public function hasDependencies(): bool
     {
-        return extension_loaded('gd') && function_exists('imagettfbbox');
+        return \extension_loaded('gd') && \function_exists('imagettfbbox');
     }
 }

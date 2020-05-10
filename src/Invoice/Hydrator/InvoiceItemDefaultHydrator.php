@@ -30,6 +30,7 @@ class InvoiceItemDefaultHydrator implements InvoiceItemHydrator
         $formatter = $this->model->getFormatter();
 
         $rate = $item->getRate();
+        $internalRate = $item->getInternalRate();
         $appliedRate = $item->getHourlyRate();
         $amount = $formatter->getFormattedDuration($item->getDuration());
         $description = $item->getDescription();
@@ -65,6 +66,9 @@ class InvoiceItemDefaultHydrator implements InvoiceItemHydrator
             'entry.rate' => $formatter->getFormattedMoney($appliedRate, $currency),
             'entry.rate_nc' => $formatter->getFormattedMoney($appliedRate, null),
             'entry.rate_plain' => $appliedRate,
+            'entry.rate_internal' => $formatter->getFormattedMoney($internalRate, $currency),
+            'entry.rate_internal_nc' => $formatter->getFormattedMoney($internalRate, null),
+            'entry.rate_internal_plain' => $internalRate,
             'entry.total' => $formatter->getFormattedMoney($rate, $currency),
             'entry.total_nc' => $formatter->getFormattedMoney($rate, null),
             'entry.total_plain' => $rate,
@@ -91,7 +95,7 @@ class InvoiceItemDefaultHydrator implements InvoiceItemHydrator
                 'entry.activity_id' => $activity->getId(),
             ]);
 
-            foreach ($activity->getVisibleMetaFields() as $metaField) {
+            foreach ($activity->getMetaFields() as $metaField) {
                 $values = array_merge($values, [
                     'entry.activity.meta.' . $metaField->getName() => $metaField->getValue(),
                 ]);
@@ -104,7 +108,7 @@ class InvoiceItemDefaultHydrator implements InvoiceItemHydrator
                 'entry.project_id' => $project->getId(),
             ]);
 
-            foreach ($project->getVisibleMetaFields() as $metaField) {
+            foreach ($project->getMetaFields() as $metaField) {
                 $values = array_merge($values, [
                     'entry.project.meta.' . $metaField->getName() => $metaField->getValue(),
                 ]);
@@ -117,7 +121,7 @@ class InvoiceItemDefaultHydrator implements InvoiceItemHydrator
                 'entry.customer_id' => $customer->getId(),
             ]);
 
-            foreach ($customer->getVisibleMetaFields() as $metaField) {
+            foreach ($customer->getMetaFields() as $metaField) {
                 $values = array_merge($values, [
                     'entry.customer.meta.' . $metaField->getName() => $metaField->getValue(),
                 ]);

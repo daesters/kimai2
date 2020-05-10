@@ -27,6 +27,9 @@ class InvoiceDocumentRepositoryTest extends TestCase
         'default.html.twig',
         'freelancer.html.twig',
         'timesheet.html.twig',
+        'text.txt.twig',
+        'javascript.json.twig',
+        'xml.xml.twig',
     ];
 
     public function testWithEmptyDirectory()
@@ -41,10 +44,10 @@ class InvoiceDocumentRepositoryTest extends TestCase
     {
         $sut = new InvoiceDocumentRepository(self::$defaultDirectories);
         $all = $sut->findAll();
-        $this->assertEquals(count(self::$defaultDocuments), count($all));
+        $this->assertEquals(\count(self::$defaultDocuments), \count($all));
 
         foreach ($all as $document) {
-            $this->assertTrue(in_array($document->getName(), self::$defaultDocuments));
+            $this->assertTrue(\in_array($document->getName(), self::$defaultDocuments));
         }
 
         foreach (self::$defaultDocuments as $filename) {

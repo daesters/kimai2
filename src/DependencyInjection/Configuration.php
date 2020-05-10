@@ -57,6 +57,7 @@ class Configuration implements ConfigurationInterface
                 ->append($this->getUserNode())
                 ->append($this->getTimesheetNode())
                 ->append($this->getInvoiceNode())
+                ->append($this->getExportNode())
                 ->append($this->getLanguagesNode())
                 ->append($this->getCalendarNode())
                 ->append($this->getThemeNode())
@@ -217,6 +218,39 @@ class Configuration implements ConfigurationInterface
                     ->defaultValue([
                         'var/invoices/',
                         'templates/invoice/renderer/'
+                    ])
+                ->end()
+                ->arrayNode('documents')
+                    ->requiresAtLeastOneElement()
+                    ->scalarPrototype()->end()
+                    ->defaultValue([])
+                ->end()
+                ->booleanNode('simple_form')
+                    ->defaultTrue()
+                ->end()
+                ->scalarNode('number_format')
+                    ->defaultValue('{Y}/{cy,3}')
+                ->end()
+            ->end()
+        ;
+
+        return $node;
+    }
+
+    protected function getExportNode()
+    {
+        $builder = new TreeBuilder('export');
+        /** @var ArrayNodeDefinition $node */
+        $node = $builder->getRootNode();
+
+        $node
+            ->addDefaultsIfNotSet()
+            ->children()
+                ->arrayNode('defaults')
+                    ->scalarPrototype()->end()
+                    ->defaultValue([
+                        'var/export/',
+                        'templates/export/renderer/'
                     ])
                 ->end()
                 ->arrayNode('documents')
@@ -656,7 +690,7 @@ class Configuration implements ConfigurationInterface
             ->end()
             ->validate()
                 ->ifTrue(static function ($v) {
-                    return null !== $v['connection']['host'] && !extension_loaded('ldap');
+                    return null !== $v['connection']['host'] && !\extension_loaded('ldap');
                 })
                 ->thenInvalid('LDAP is activated, but the LDAP PHP extension is not loaded.')
             ->end()
@@ -799,7 +833,7 @@ class Configuration implements ConfigurationInterface
                                 ->variableNode('requestedAuthnContext')
                                     ->validate()
                                         ->ifTrue(function ($v) {
-                                            return !is_bool($v) && !is_array($v);
+                                            return !\is_bool($v) && !\is_array($v);
                                         })
                                         ->thenInvalid('Must be an array or a bool.')
                                     ->end()

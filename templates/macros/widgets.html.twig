@@ -119,21 +119,30 @@
 
 {% macro label_color_dot(type, isVisible, name, url, color) %}
     <span class="label-{{ type }}{{ isVisible ? '' : ' label-invisible' }}">
-        <span class="dot"{% if color is not empty %} style="background-color:{{ color }}"{% endif %}></span>
         <span class="name">
-            {% if url is not empty %}
+            <i class="dot {{ 'dot'|icon }} fa-fw"{% if color is not empty %} style="color:{{ color }}"{% endif %}></i>
+            {%- if url is not empty -%}
                 <a href="{{ url }}">{{ name }}</a>
-            {% else %}
+            {%- else -%}
                 {{ name }}
-            {% endif %}
+            {%- endif -%}
         </span>
     </span>
 {% endmacro %}
 
 {% macro color_dot(color, tooltip) %}
     <span class="label-color" data-toggle="tooltip" data-placement="top" title="{{ tooltip }}">
-        <span class="dot" style="background-color:{{ color }}"></span>
+        <i class="dot {{ 'dot'|icon }} fa-fw"{% if color is not empty %} style="color:{{ color }}"{% endif %}></i>
     </span>
+{% endmacro %}
+
+{% macro badge_team_access(teams) %}
+    {% import _self as macro %}
+    {% if teams|length > 0 %}
+        {{ macro.badge_counter(teams|length) }}
+    {% else %}
+        {{ macro.icon('unlocked') }}
+    {% endif %}
 {% endmacro %}
 
 {% macro badge_counter(count, url) %}
@@ -150,8 +159,7 @@
 {% endmacro %}
 
 {% macro badge(title, color) %}
-    {# black, green, blue, yellow #}
-    <span class="badge bg-{{ color|default('red') }}">{{ title|trans }}</span>
+    <span class="badge" style="background-color:{{ color }}">{{ title|trans }}</span>
 {% endmacro %}
 
 {% macro alert(type, description, title, icon) %}
@@ -360,7 +368,7 @@
 {% macro tag_list(taglist) %}
     {% import _self as macro %}
     {% for tag in taglist %}
-        {{ macro.badge(tag.name , 'green') }}
+        {{ macro.badge(tag.name, tag.color|default('#00a65a')) }}
     {% endfor %}
 {% endmacro %}
 

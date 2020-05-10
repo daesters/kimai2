@@ -12,10 +12,12 @@ namespace App\Controller;
 use App\Entity\Role;
 use App\Entity\RolePermission;
 use App\Event\PermissionSectionsEvent;
+use App\Event\PermissionsEvent;
 use App\Form\RoleType;
 use App\Model\PermissionSection;
 use App\Repository\RolePermissionRepository;
 use App\Repository\RoleRepository;
+use App\Repository\UserRepository;
 use App\Security\RolePermissionManager;
 use App\Security\RoleService;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
@@ -70,7 +72,7 @@ final class PermissionController extends AbstractController
         // automatically import all hard coded (default) roles into the database table
         foreach ($this->roleService->getAvailableNames() as $roleName) {
             $roleName = strtoupper($roleName);
-            if (!in_array($roleName, $existing)) {
+            if (!\in_array($roleName, $existing)) {
                 $role = new Role();
                 $role->setName($roleName);
                 $this->roleRepository->saveRole($role);
@@ -143,10 +145,16 @@ final class PermissionController extends AbstractController
             $roles[$role->getName()] = $role;
         }
 
+        $event = new PermissionsEvent();
+        foreach ($permissionSorted as $title => $permissions) {
+            $event->addPermissions($title, $permissions);
+        }
+
+        $dispatcher->dispatch($event);
+
         return $this->render('user/permissions.html.twig', [
             'roles' => array_values($roles),
-            'permissions' => $this->manager->getPermissions(),
-            'sorted' => $permissionSorted,
+            'sorted' => $event->getPermissions(),
             'manager' => $this->manager,
             'system_roles' => $this->roleService->getSystemRoles(),
         ]);
@@ -188,9 +196,16 @@ final class PermissionController extends AbstractController
      * @Route(path="/roles/{id}/delete", name="admin_user_role_delete", methods={"GET", "POST"})
      * @Security("is_granted('role_permissions')")
      */
-    public function deleteRole(Role $role): Response
+    public function deleteRole(Role $role, UserRepository $userRepository): Response
     {
         try {
+            // workaround, as roles is still a string array on users table
+            // until this is fixed, the users must be manually updated
+            $users = $userRepository->findUsersWithRole($role->getName());
+            foreach ($users as $user) {
+                $user->removeRole($role->getName());
+                $userRepository->saveUser($user);
+            }
             $this->roleRepository->deleteRole($role);
             $this->flashSuccess('action.delete.success');
         } catch (\Exception $ex) {
